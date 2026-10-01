@@ -46,6 +46,8 @@ alter table public.transactions enable row level security;
 
 create policy "read all"   on public.users        for select using (true);
 create policy "write all"  on public.users        for insert with check (true);
+create policy "update users" on public.users       for update using (true) with check (true);
+create policy "delete users" on public.users       for delete using (true);
 create policy "read all"   on public.brands       for select using (true);
 create policy "write all"  on public.brands       for insert with check (true);
 create policy "update all" on public.brands       for update using (true);

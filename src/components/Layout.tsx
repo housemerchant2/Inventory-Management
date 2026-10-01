@@ -12,7 +12,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
-  const { currentUser, isOnline, offlineQueueCount, switchRole, brands } = useApp();
+  const { currentUser, users, isOnline, offlineQueueCount, switchUser, brands } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [roleSwitcherOpen, setRoleSwitcherOpen] = useState(false);
   const pendingBrands = brands.filter(b => b.status === 'pending').length;
@@ -77,19 +77,20 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
             {roleSwitcherOpen && (
-              <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
-                <button
-                  onClick={() => { switchRole('manager'); setRoleSwitcherOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <Shield className="w-4 h-4 text-purple-600" /> Ahmad Manager
-                </button>
-                <button
-                  onClick={() => { switchRole('staff'); setRoleSwitcherOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <User className="w-4 h-4 text-green-600" /> Budi Staff
-                </button>
+              <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 max-h-64 overflow-y-auto">
+                {users.map(user => (
+                  <button
+                    key={user.id}
+                    onClick={() => { switchUser(user.id); setRoleSwitcherOpen(false); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 ${user.id === currentUser.id ? 'bg-blue-50' : ''}`}
+                  >
+                    {user.role === 'manager'
+                      ? <Shield className="w-4 h-4 text-purple-600" />
+                      : <User className="w-4 h-4 text-green-600" />}
+                    <span className="flex-1 truncate">{user.fullName}</span>
+                    <span className="text-[10px] text-gray-400 uppercase">{user.role}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -152,24 +153,23 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
               ))}
             </nav>
             <div className="p-3 border-t border-gray-200 mt-auto">
-              <p className="text-xs text-gray-500 px-3 mb-2">Demo: Switch Role</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { switchRole('manager'); setSidebarOpen(false); }}
-                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium ${
-                    currentUser.role === 'manager' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  Manager
-                </button>
-                <button
-                  onClick={() => { switchRole('staff'); setSidebarOpen(false); }}
-                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium ${
-                    currentUser.role === 'staff' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  Staff
-                </button>
+              <p className="text-xs text-gray-500 px-3 mb-2">Ganti User Aktif</p>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {users.map(user => (
+                  <button
+                    key={user.id}
+                    onClick={() => { switchUser(user.id); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-2 py-2 px-3 rounded-lg text-sm ${
+                      user.id === currentUser.id ? 'bg-blue-50 text-blue-700 font-medium' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {user.role === 'manager'
+                      ? <Shield className="w-4 h-4 text-purple-600" />
+                      : <User className="w-4 h-4 text-green-600" />}
+                    <span className="flex-1 truncate text-left">{user.fullName}</span>
+                    <span className="text-[10px] uppercase text-gray-400">{user.role}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>

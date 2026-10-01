@@ -1,18 +1,103 @@
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Users, Shield, User, Tag, Check } from 'lucide-react';
+import { Users, Shield, User, Tag, Check, Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Role, User as UserType } from '../types';
 
 export default function UsersPage() {
-  const { users, brands } = useApp();
+  const { users, brands, addUser, updateUser, deleteUser } = useApp();
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formRole, setFormRole] = useState<Role>('staff');
+  const [saving, setSaving] = useState(false);
 
   const staffUsers = users.filter(u => u.role === 'staff');
   const managerUsers = users.filter(u => u.role === 'manager');
 
+  const openAddForm = () => {
+    setEditingId(null);
+    setFormName('');
+    setFormRole('staff');
+    setShowForm(true);
+  };
+
+  const openEditForm = (user: UserType) => {
+    setEditingId(user.id);
+    setFormName(user.fullName);
+    setFormRole(user.role);
+    setShowForm(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formName.trim()) return;
+    setSaving(true);
+    try {
+      if (editingId) await updateUser(editingId, formName, formRole);
+      else await addUser(formName, formRole);
+      setShowForm(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (user: UserType) => {
+    if (!window.confirm(`Hapus user "${user.fullName}"?`)) return;
+    await deleteUser(user.id);
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <div>
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900">Kelola Staff</h1>
-        <p className="text-sm text-gray-500 mt-1">Lihat daftar staff dan brand yang mereka kelola</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Kelola Staff</h1>
+          <p className="text-sm text-gray-500 mt-1">Tambah, ganti nama, dan hapus user. Perubahan tersimpan ke Supabase.</p>
+        </div>
+        <button
+          onClick={openAddForm}
+          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-2 rounded-lg whitespace-nowrap"
+        >
+          <Plus className="w-4 h-4" /> Tambah User
+        </button>
       </div>
+
+      {/* Form Tambah / Edit User */}
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-white border border-blue-200 rounded-xl p-4 space-y-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900">{editingId ? 'Edit User' : 'Tambah User Baru'}</h2>
+            <button type="button" onClick={() => setShowForm(false)} className="p-1 rounded hover:bg-gray-100">
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              type="text"
+              value={formName}
+              onChange={e => setFormName(e.target.value)}
+              placeholder="Nama lengkap (cth: Eko Staff)"
+              required
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <select
+              value={formRole}
+              onChange={e => setFormRole(e.target.value as Role)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="staff">Staff Gudang</option>
+              <option value="manager">Manager</option>
+            </select>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setShowForm(false)} className="px-3 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200">
+              Batal
+            </button>
+            <button type="submit" disabled={saving || !formName.trim()} className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50">
+              {saving ? 'Menyimpan…' : editingId ? 'Simpan Perubahan' : 'Tambah'}
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Info Banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
@@ -33,16 +118,26 @@ export default function UsersPage() {
         </h2>
         <div className="space-y-2">
           {managerUsers.map(user => (
-            <div key={user.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                <Shield className="w-5 h-5 text-purple-600" />
+              <div key={user.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
+                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">{user.fullName}</p>
+                  <p className="text-xs text-gray-500">Manager • Akses penuh ke semua brand</p>
+                </div>
+                <span className="text-xs bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full font-medium">Manager</span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => openEditForm(user)} title="Ganti nama / role" className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  {users.length > 1 && (
+                    <button onClick={() => handleDelete(user)} title="Hapus user" className="p-2 rounded-lg hover:bg-red-50 text-red-500">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{user.fullName}</p>
-                <p className="text-xs text-gray-500">Manager • Akses penuh ke semua brand</p>
-              </div>
-              <span className="text-xs bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full font-medium">Manager</span>
-            </div>
           ))}
         </div>
       </div>
@@ -67,6 +162,16 @@ export default function UsersPage() {
                     <p className="text-xs text-gray-500">Staff Gudang</p>
                   </div>
                   <span className="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-medium">Staff</span>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => openEditForm(user)} title="Ganti nama / role" className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    {users.length > 1 && (
+                      <button onClick={() => handleDelete(user)} title="Hapus user" className="p-2 rounded-lg hover:bg-red-50 text-red-500">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-gray-100">
                   <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">

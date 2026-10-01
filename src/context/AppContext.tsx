@@ -13,6 +13,10 @@ interface AppState {
   isOnline: boolean;
   offlineQueueCount: number;
   switchRole: (role: Role) => void;
+  switchUser: (userId: string) => void;
+  addUser: (fullName: string, role: Role) => Promise<void>;
+  updateUser: (userId: string, fullName: string, role: Role) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
   approveBrand: (brandId: string) => void;
   requestBrand: (name: string) => void;
   assignStaffToBrand: (brandId: string, staffIds: string[]) => void;
@@ -89,6 +93,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const switchRole = useCallback((role: Role) => {
     const user = users.find(u => u.role === role);
     if (user) setCurrentUser(user);
+  }, [users]);
+
+  const switchUser = useCallback((userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (user) setCurrentUser(user);
+  }, [users]);
+
+  // Ingat user aktif di localStorage agar setelah tutup-buka PWA tetap sama
+  useEffect(() => {
+    localStorage.setItem('activeUserId', currentUser.id);
+  }, [currentUser.id]);
+
+  useEffect(() => {
+    const savedId = localStorage.getItem('activeUserId');
+    if (savedId) {
+      const found = users.find(u => u.id === savedId);
+      if (found && found.id !== currentUser.id) setCurrentUser(found);
+    }
+  }, [users]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const addUser = useCallback(async (fullName: string, role: Role) => {
+    const newUser: User = { id: crypto.randomUUID(), fullName: fullName.trim(), role };
+    setUsers(prev => [...prev, newUser]);
+    if (supabase && isSupabaseConfigured) {
+      const { error } = await supabase.from(TABLES.users).insert({
+        id: newUser.id, full_name: newUser.fullName, role: newUser.role,
+      });
+      if (error) console.error('Gagal menambah user:', error.message);
+    }
+  }, []);
+
+  const updateUser = useCallback(async (userId: string, fullName: string, role: Role) => {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, fullName: fullName.trim(), role } : u));
+    setCurrentUser(prev => prev.id === userId ? { ...prev, fullName: fullName.trim(), role } : prev);
+    if (supabase && isSupabaseConfigured) {
+      const { error } = await supabase.from(TABLES.users)
+        .update({ full_name: fullName.trim(), role })
+        .eq('id', userId);
+      if (error) console.error('Gagal mengubah user:', error.message);
+    }
+  }, []);
+
+  const deleteUser = useCallback(async (userId: string) => {
+    setUsers(prev => prev.filter(u => u.id !== userId));
+    setCurrentUser(prev => {
+      if (prev.id !== userId) return prev;
+      const fallback = users.find(u => u.id !== userId);
+      return fallback ?? prev;
+    });
+    if (supabase && isSupabaseConfigured) {
+      const { error } = await supabase.from(TABLES.users).delete().eq('id', userId);
+      if (error) console.error('Gagal menghapus user:', error.message);
+    }
   }, [users]);
 
   const approveBrand = useCallback((brandId: string) => {
@@ -184,7 +241,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       currentUser, users, brands, items, transactions, isOnline, offlineQueueCount,
-      switchRole, approveBrand, requestBrand, assignStaffToBrand,
+      switchRole, switchUser, addUser, updateUser, deleteUser,
+      approveBrand, requestBrand, assignStaffToBrand,
       addItem, addTransaction, getItemsByBrand, getBrandsForUser, getLowStockItems,
     }}>
       {children}
