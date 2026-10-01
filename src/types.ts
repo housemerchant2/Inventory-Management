@@ -44,6 +44,6 @@ export interface Transaction {
 export interface OfflineQueueItem {
   id: string;
   action: 'transaction';
-   Omit<Transaction, 'id' | 'synced'>;
+  payload: Omit<Transaction, 'id' | 'createdAt' | 'synced'>;
   timestamp: string;
 }
